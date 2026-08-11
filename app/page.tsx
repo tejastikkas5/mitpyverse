@@ -62,14 +62,26 @@ export default function Home() {
 
           {/* Nav + Theme Toggle */}
           <div className="flex items-center gap-3">
-            {/* Theme Toggle */}
+          {/* Sliding Pill Theme Toggle */}
             <button
               onClick={toggleTheme}
               aria-label="Toggle theme"
-              className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all border ${dark ? 'bg-slate-800 border-slate-700 hover:bg-slate-700' : 'bg-slate-100 border-slate-200 hover:bg-slate-200'}`}
+              className={`relative flex items-center w-16 h-8 rounded-full transition-colors duration-300 focus:outline-none flex-shrink-0 ${dark ? 'bg-slate-900 border border-slate-700' : 'bg-slate-100 border border-slate-300'}`}
             >
-              {dark ? '☀️' : '🌙'}
+              {/* Moon icon (shown when dark) */}
+              <span className={`absolute left-2 text-[13px] transition-opacity duration-200 select-none ${dark ? 'opacity-100' : 'opacity-0'}`}>
+                🌙
+              </span>
+              {/* Sun icon (shown when light) */}
+              <span className={`absolute right-2 text-[13px] transition-opacity duration-200 select-none ${dark ? 'opacity-0' : 'opacity-100'}`}>
+                ☀️
+              </span>
+              {/* Sliding circle */}
+              <span
+                className={`absolute top-1 w-6 h-6 rounded-full shadow-md transition-all duration-300 ${dark ? 'left-[calc(100%-1.75rem)] bg-white' : 'left-1 bg-slate-900'}`}
+              />
             </button>
+
 
             <Link
               href="/login"
