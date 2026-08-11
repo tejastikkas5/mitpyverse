@@ -151,29 +151,56 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
     }
   }
 
-  // Helper: RFC4180 compliant CSV line parser (handles commas inside quotes)
-  function parseCsvRow(rowText: string): string[] {
-    const result: string[] = [];
-    let current = '';
+  // Helper: RFC4180 multiline CSV parser that handles quotes, commas, AND multiline newlines inside quoted fields
+  function parseFullCsv(csvText: string): string[][] {
+    const rows: string[][] = [];
+    let currentRow: string[] = [];
+    let currentField = '';
     let inQuotes = false;
-    for (let i = 0; i < rowText.length; i++) {
-      const char = rowText[i];
+
+    for (let i = 0; i < csvText.length; i++) {
+      const char = csvText[i];
+      const nextChar = csvText[i + 1];
+
       if (char === '"') {
-        if (inQuotes && rowText[i + 1] === '"') {
-          current += '"';
-          i++;
+        if (inQuotes && nextChar === '"') {
+          // Escaped double quote ("")
+          currentField += '"';
+          i++; // Skip next quote
         } else {
+          // Toggle quote state
           inQuotes = !inQuotes;
         }
       } else if (char === ',' && !inQuotes) {
-        result.push(current.trim());
-        current = '';
+        // Field separator
+        currentRow.push(currentField.trim());
+        currentField = '';
+      } else if ((char === '\r' || char === '\n') && !inQuotes) {
+        // Line separator (outside quotes)
+        if (char === '\r' && nextChar === '\n') {
+          i++; // Skip \n in \r\n
+        }
+        currentRow.push(currentField.trim());
+        if (currentRow.some((f) => f.length > 0)) {
+          rows.push(currentRow);
+        }
+        currentRow = [];
+        currentField = '';
       } else {
-        current += char;
+        // Normal character OR newline inside quotes
+        currentField += char;
       }
     }
-    result.push(current.trim());
-    return result;
+
+    // Push final row if any content remains
+    if (currentField || currentRow.length > 0) {
+      currentRow.push(currentField.trim());
+      if (currentRow.some((f) => f.length > 0)) {
+        rows.push(currentRow);
+      }
+    }
+
+    return rows;
   }
 
   async function handleBulkCsv(e: React.ChangeEvent<HTMLInputElement>) {
@@ -182,16 +209,16 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
 
     setLoading(true);
     const text = await file.text();
-    const rawLines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const rows = parseFullCsv(text);
 
-    if (rawLines.length === 0) {
+    if (rows.length === 0) {
       alert('CSV file is empty');
       setLoading(false);
       return;
     }
 
-    // Check if line 1 is a header
-    const firstRowCols = parseCsvRow(rawLines[0]);
+    // Check if row 0 is a header
+    const firstRowCols = rows[0];
     const isHeader =
       firstRowCols[0]?.toLowerCase().includes('question') ||
       firstRowCols[0]?.toLowerCase().includes('text') ||
@@ -201,8 +228,8 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
     const startIndex = isHeader ? 1 : 0;
     const questionsData = [];
 
-    for (let i = startIndex; i < rawLines.length; i++) {
-      const cols = parseCsvRow(rawLines[i]);
+    for (let i = startIndex; i < rows.length; i++) {
+      const cols = rows[i];
       if (cols.length >= 6) {
         questionsData.push({
           question_text: cols[0],
