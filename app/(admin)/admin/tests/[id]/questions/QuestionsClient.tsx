@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createQuestionAction, updateQuestionAction, deleteQuestionAction, bulkImportQuestionsAction } from '@/services/questions';
+import { createQuestionAction, updateQuestionAction, deleteQuestionAction, deleteMultipleQuestionsAction, bulkImportQuestionsAction } from '@/services/questions';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -17,6 +17,7 @@ interface QuestionsClientProps {
 
 export function QuestionsClient({ testId, initialQuestions, sessions }: QuestionsClientProps) {
   const [questions, setQuestions] = useState<any[]>(initialQuestions);
+  const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<any | null>(null);
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -114,8 +115,39 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
     const res = await deleteQuestionAction(qId, testId);
     if (res.success) {
       setQuestions((prev) => prev.filter((q) => q.id !== qId));
+      setSelectedQuestionIds((prev) => prev.filter((id) => id !== qId));
     } else {
       alert(res.error);
+    }
+  }
+
+  function toggleSelectQuestion(qId: string) {
+    setSelectedQuestionIds((prev) =>
+      prev.includes(qId) ? prev.filter((id) => id !== qId) : [...prev, qId]
+    );
+  }
+
+  function toggleSelectAll() {
+    if (selectedQuestionIds.length === questions.length) {
+      setSelectedQuestionIds([]);
+    } else {
+      setSelectedQuestionIds(questions.map((q) => q.id));
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (selectedQuestionIds.length === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedQuestionIds.length} selected question(s)?`)) return;
+
+    setLoading(true);
+    const res = await deleteMultipleQuestionsAction(selectedQuestionIds, testId);
+    setLoading(false);
+
+    if (res.success) {
+      setQuestions((prev) => prev.filter((q) => !selectedQuestionIds.includes(q.id)));
+      setSelectedQuestionIds([]);
+    } else {
+      alert(res.error || 'Failed to delete selected questions');
     }
   }
 
@@ -224,6 +256,33 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
         </div>
       </div>
 
+      {/* Bulk Action Bar */}
+      {questions.length > 0 && (
+        <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between">
+          <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-slate-300">
+            <input
+              type="checkbox"
+              checked={questions.length > 0 && selectedQuestionIds.length === questions.length}
+              onChange={toggleSelectAll}
+              className="w-4 h-4 accent-indigo-600 rounded"
+            />
+            <span>Select All ({selectedQuestionIds.length}/{questions.length} selected)</span>
+          </label>
+
+          {selectedQuestionIds.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBulkDelete}
+              disabled={loading}
+              className="border-rose-500/30 text-rose-400 hover:bg-rose-500/10 font-bold"
+            >
+              🗑️ Delete Selected ({selectedQuestionIds.length})
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Question List */}
       <div className="space-y-4">
         {questions.length === 0 ? (
@@ -231,15 +290,23 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
             No questions created for this test yet. Click "Add Question" to begin.
           </Card>
         ) : (
-          questions.map((q, idx) => (
-            <Card key={q.id} className="relative">
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-lg bg-indigo-600/20 text-indigo-400 font-extrabold flex items-center justify-center text-xs">
-                    Q{idx + 1}
-                  </span>
-                  <span className="font-semibold text-slate-100 text-base">{q.question_text}</span>
-                </div>
+          questions.map((q, idx) => {
+            const isSelected = selectedQuestionIds.includes(q.id);
+            return (
+              <Card key={q.id} className={`relative transition-colors ${isSelected ? 'border-indigo-500 bg-indigo-950/10' : ''}`}>
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelectQuestion(q.id)}
+                      className="w-4 h-4 accent-indigo-600 rounded cursor-pointer"
+                    />
+                    <span className="w-7 h-7 rounded-lg bg-indigo-600/20 text-indigo-400 font-extrabold flex items-center justify-center text-xs">
+                      Q{idx + 1}
+                    </span>
+                    <span className="font-semibold text-slate-100 text-base">{q.question_text}</span>
+                  </div>
                 <div className="flex items-center gap-2">
                   {q.session_id ? (
                     <Badge variant="warning">
@@ -283,9 +350,10 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
                 })}
               </div>
             </Card>
-          ))
-        )}
-      </div>
+          );
+        })
+      )}
+    </div>
 
       {/* ADD QUESTION MODAL */}
       {showAddModal && (

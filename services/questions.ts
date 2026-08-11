@@ -128,6 +128,24 @@ export async function deleteQuestionAction(questionId: string, testId: string) {
   return { success: true };
 }
 
+export async function deleteMultipleQuestionsAction(questionIds: string[], testId: string) {
+  if (!questionIds || questionIds.length === 0) {
+    return { success: false, error: 'No questions selected for deletion.' };
+  }
+
+  const supabase = createAdminClient();
+
+  const { error } = await supabase.from('questions').delete().in('id', questionIds);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  await updateTestTotals(testId);
+  revalidatePath(`/admin/tests/${testId}/questions`);
+  return { success: true };
+}
+
 export async function updateQuestionAction(data: {
   question_id: string;
   test_id: string;
