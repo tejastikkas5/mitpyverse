@@ -305,7 +305,7 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
                     <span className="w-7 h-7 rounded-lg bg-indigo-600/20 text-indigo-400 font-extrabold flex items-center justify-center text-xs">
                       Q{idx + 1}
                     </span>
-                    <span className="font-semibold text-slate-100 text-base">{q.question_text}</span>
+                    <span className="font-semibold text-slate-100 text-base whitespace-pre-wrap font-mono">{q.question_text}</span>
                   </div>
                 <div className="flex items-center gap-2">
                   {q.session_id ? (
@@ -361,7 +361,16 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
           <div className="w-full max-w-lg my-8">
             <Card title="Add Question" subtitle="Define MCQ question text, choices, and answer key">
               <form onSubmit={handleAddQuestion} className="space-y-4">
-                <Input label="Question Text *" name="question_text" required placeholder="e.g. What is the output of print(2**3)?" />
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Question Text *</label>
+                  <textarea
+                    name="question_text"
+                    required
+                    rows={4}
+                    placeholder="e.g. What is the output of:&#10;int x = 10;&#10;printf(&quot;%d&quot;, x);"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 font-mono"
+                  />
+                </div>
                 <Input label="Marks" name="marks" type="number" defaultValue="1" required />
 
                 <div className="space-y-2">
@@ -411,12 +420,16 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
           <div className="w-full max-w-lg my-8">
             <Card title="Edit Question" subtitle="Update question text, choices, marks, or answer key">
               <form onSubmit={handleEditQuestion} className="space-y-4">
-                <Input
-                  label="Question Text *"
-                  name="question_text"
-                  required
-                  defaultValue={editingQuestion.question_text}
-                />
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Question Text *</label>
+                  <textarea
+                    name="question_text"
+                    required
+                    rows={4}
+                    defaultValue={editingQuestion.question_text}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 font-mono"
+                  />
+                </div>
                 <Input
                   label="Marks"
                   name="marks"

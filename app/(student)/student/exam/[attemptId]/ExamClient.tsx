@@ -346,9 +346,9 @@ export function ExamClient({
               </div>
             </div>
 
-            <h2 className="text-xl font-bold text-slate-900 leading-relaxed">
+            <div className="text-lg font-bold text-slate-900 leading-relaxed whitespace-pre-wrap font-mono bg-slate-50 p-4 rounded-xl border border-slate-200">
               {currentQ.question_text}
-            </h2>
+            </div>
 
             {/* MCQ OPTIONS */}
             <div className="space-y-3 pt-2">
