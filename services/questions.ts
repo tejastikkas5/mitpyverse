@@ -7,9 +7,10 @@ import { QuestionOptionLabel } from '@/types/database';
 export async function getQuestionsByTestIdAction(testId: string) {
   const supabase = createAdminClient();
 
+  // Step 1: Fetch questions with their options
   const { data: questions, error } = await supabase
     .from('questions')
-    .select('*, options(*), answer_keys(*)')
+    .select('*, options(*)')
     .eq('test_id', testId)
     .order('order_index', { ascending: true });
 
@@ -17,7 +18,24 @@ export async function getQuestionsByTestIdAction(testId: string) {
     return { success: false, error: error.message, questions: [] };
   }
 
-  return { success: true, questions: questions || [] };
+  if (!questions || questions.length === 0) {
+    return { success: true, questions: [] };
+  }
+
+  // Step 2: Fetch answer_keys separately (avoids relying on Supabase FK auto-join)
+  const questionIds = questions.map((q) => q.id);
+  const { data: answerKeys } = await supabase
+    .from('answer_keys')
+    .select('*')
+    .in('question_id', questionIds);
+
+  // Step 3: Merge answer_keys into each question
+  const questionsWithKeys = questions.map((q) => ({
+    ...q,
+    answer_keys: (answerKeys || []).filter((ak) => ak.question_id === q.id),
+  }));
+
+  return { success: true, questions: questionsWithKeys };
 }
 
 export async function createQuestionAction(data: {
