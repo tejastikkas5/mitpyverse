@@ -95,13 +95,11 @@ export async function createQuestionAction(data: {
     return { success: false, error: optErr.message };
   }
 
-  // 3. Insert Answer Key (Server-side ONLY)
-  const { error: keyErr } = await supabase.from('answer_keys').insert([
-    {
-      question_id: question.id,
-      correct_option: data.correct_option,
-    },
-  ]);
+  // 3. Upsert Answer Key (insert if missing, update if exists)
+  const { error: keyErr } = await supabase.from('answer_keys').upsert(
+    [{ question_id: question.id, correct_option: data.correct_option }],
+    { onConflict: 'question_id' }
+  );
 
   if (keyErr) {
     return { success: false, error: keyErr.message };
@@ -194,11 +192,14 @@ export async function updateQuestionAction(data: {
     }
   }
 
-  // 3. Update Answer Key
+  // 3. UPSERT Answer Key: insert if no row exists, update if it does
+  // This fixes the case where CSV import never created an answer_key row
   const { error: keyErr } = await supabase
     .from('answer_keys')
-    .update({ correct_option: data.correct_option })
-    .eq('question_id', data.question_id);
+    .upsert(
+      [{ question_id: data.question_id, correct_option: data.correct_option }],
+      { onConflict: 'question_id' }
+    );
 
   if (keyErr) {
     return { success: false, error: keyErr.message };
