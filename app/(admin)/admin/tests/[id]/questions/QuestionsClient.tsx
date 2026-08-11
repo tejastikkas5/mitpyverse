@@ -151,53 +151,56 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
     }
   }
 
-  // Helper: RFC4180 multiline CSV parser that handles quotes, commas, AND multiline newlines inside quoted fields
+  // Strip invisible/non-printable chars from a CSV field value (BOM, CRLF remnants, zero-width chars, etc.)
+  function cleanField(s: string): string {
+    return s
+      .replace(/\uFEFF/g, '')   // BOM
+      .replace(/[\u200B-\u200D\uFEFF\u00AD]/g, '') // Zero-width chars
+      .replace(/\r/g, '')        // stray carriage returns
+      .trim();
+  }
+
+  // Helper: RFC4180 multiline CSV parser that handles quotes, commas, AND newlines inside quoted fields
   function parseFullCsv(csvText: string): string[][] {
+    // Strip leading BOM if present
+    const text = csvText.replace(/^\uFEFF/, '');
     const rows: string[][] = [];
     let currentRow: string[] = [];
     let currentField = '';
     let inQuotes = false;
 
-    for (let i = 0; i < csvText.length; i++) {
-      const char = csvText[i];
-      const nextChar = csvText[i + 1];
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const nextChar = text[i + 1];
 
       if (char === '"') {
         if (inQuotes && nextChar === '"') {
           // Escaped double quote ("")
           currentField += '"';
-          i++; // Skip next quote
+          i++;
         } else {
-          // Toggle quote state
           inQuotes = !inQuotes;
         }
       } else if (char === ',' && !inQuotes) {
-        // Field separator
-        currentRow.push(currentField.trim());
+        // Field separator — clean each field when pushed
+        currentRow.push(cleanField(currentField));
         currentField = '';
       } else if ((char === '\r' || char === '\n') && !inQuotes) {
-        // Line separator (outside quotes)
-        if (char === '\r' && nextChar === '\n') {
-          i++; // Skip \n in \r\n
-        }
-        currentRow.push(currentField.trim());
-        if (currentRow.some((f) => f.length > 0)) {
-          rows.push(currentRow);
-        }
+        // Row separator
+        if (char === '\r' && nextChar === '\n') i++;
+        currentRow.push(cleanField(currentField));
+        if (currentRow.some((f) => f.length > 0)) rows.push(currentRow);
         currentRow = [];
         currentField = '';
       } else {
-        // Normal character OR newline inside quotes
         currentField += char;
       }
     }
 
-    // Push final row if any content remains
+    // Final row
     if (currentField || currentRow.length > 0) {
-      currentRow.push(currentField.trim());
-      if (currentRow.some((f) => f.length > 0)) {
-        rows.push(currentRow);
-      }
+      currentRow.push(cleanField(currentField));
+      if (currentRow.some((f) => f.length > 0)) rows.push(currentRow);
     }
 
     return rows;
@@ -231,13 +234,16 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
     for (let i = startIndex; i < rows.length; i++) {
       const cols = rows[i];
       if (cols.length >= 6) {
+        // Strip any non-letter characters from correctOption (handles stray spaces, invisible chars)
+        const rawCorrect = cols[5] ?? '';
+        const safeCorrect = rawCorrect.replace(/[^A-Za-z]/g, '').toUpperCase();
         questionsData.push({
           question_text: cols[0],
           option_a: cols[1],
           option_b: cols[2],
           option_c: cols[3],
           option_d: cols[4],
-          correct_option: (cols[5] ? cols[5].toUpperCase() : '') as QuestionOptionLabel,
+          correct_option: safeCorrect as QuestionOptionLabel,
           marks: cols[6] ? parseInt(cols[6], 10) || 1 : 1,
         });
       }
