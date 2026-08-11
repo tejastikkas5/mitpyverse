@@ -24,3 +24,77 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ADMIN LIGHT MODE THEME OVERRIDES */
+.admin-light-mode {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+.admin-light-mode aside {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+.admin-light-mode header {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+.admin-light-mode h1,
+.admin-light-mode h2,
+.admin-light-mode h3,
+.admin-light-mode h4,
+.admin-light-mode strong {
+  color: #0f172a !important;
+}
+
+.admin-light-mode p,
+.admin-light-mode span,
+.admin-light-mode td,
+.admin-light-mode th {
+  color: #334155;
+}
+
+.admin-light-mode .bg-slate-950,
+.admin-light-mode .bg-slate-900,
+.admin-light-mode .bg-slate-900\/50,
+.admin-light-mode .bg-slate-800 {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.admin-light-mode .border-slate-800,
+.admin-light-mode .border-slate-700 {
+  border-color: #e2e8f0 !important;
+}
+
+.admin-light-mode .text-slate-100,
+.admin-light-mode .text-slate-200,
+.admin-light-mode .text-slate-300 {
+  color: #0f172a !important;
+}
+
+.admin-light-mode .text-slate-400,
+.admin-light-mode .text-slate-500 {
+  color: #64748b !important;
+}
+
+.admin-light-mode nav a {
+  color: #334155 !important;
+}
+
+.admin-light-mode nav a:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+.admin-light-mode input,
+.admin-light-mode select,
+.admin-light-mode textarea {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
