@@ -29,8 +29,12 @@ export default function AdminLoginPage() {
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex w-12 h-12 rounded-xl bg-indigo-600 items-center justify-center font-extrabold text-white text-xl shadow-lg mb-3">
-            PV
+          <div className="inline-flex w-16 h-16 rounded-2xl bg-white items-center justify-center p-1 shadow-xl mb-3 overflow-hidden">
+            <img
+              src="/PyVerse_logo.png"
+              alt="PyVerse Logo"
+              className="w-full h-full object-contain"
+            />
           </div>
           <h1 className="text-2xl font-bold text-slate-100">MITPyVerse</h1>
           <p className="text-sm text-slate-400">Admin Control Portal</p>
@@ -48,7 +52,7 @@ export default function AdminLoginPage() {
               label="Email / Username"
               name="email"
               type="text"
-              placeholder="tejastikkas"
+              placeholder="Enter admin username"
               required
             />
 
@@ -56,7 +60,7 @@ export default function AdminLoginPage() {
               label="Password"
               name="password"
               type="password"
-              placeholder="••••••••"
+              placeholder="Enter password"
               required
             />
 
