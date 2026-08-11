@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createQuestionAction, deleteQuestionAction, bulkImportQuestionsAction } from '@/services/questions';
+import { createQuestionAction, updateQuestionAction, deleteQuestionAction, bulkImportQuestionsAction } from '@/services/questions';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -18,12 +18,15 @@ interface QuestionsClientProps {
 export function QuestionsClient({ testId, initialQuestions, sessions }: QuestionsClientProps) {
   const [questions, setQuestions] = useState<any[]>(initialQuestions);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<any | null>(null);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
   // Add Question State
   const [correctOption, setCorrectOption] = useState<QuestionOptionLabel>('A');
+  // Edit Question State
+  const [editCorrectOption, setEditCorrectOption] = useState<QuestionOptionLabel>('A');
 
   async function handleAddQuestion(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -57,6 +60,51 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
       window.location.reload();
     } else {
       alert(result.error || 'Failed to add question');
+    }
+    setLoading(false);
+  }
+
+  function openEditModal(q: any) {
+    setEditingQuestion(q);
+    const correctOpt = q.answer_keys?.[0]?.correct_option || 'A';
+    setEditCorrectOption(correctOpt);
+  }
+
+  async function handleEditQuestion(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editingQuestion) return;
+
+    setLoading(true);
+    const formData = new FormData(e.currentTarget);
+
+    const question_text = formData.get('question_text') as string;
+    const marks = parseInt(formData.get('marks') as string || '1', 10);
+    const session_id = (formData.get('session_id') as string) || null;
+
+    const optA = formData.get('optA') as string;
+    const optB = formData.get('optB') as string;
+    const optC = formData.get('optC') as string;
+    const optD = formData.get('optD') as string;
+
+    const result = await updateQuestionAction({
+      question_id: editingQuestion.id,
+      test_id: testId,
+      session_id,
+      question_text,
+      marks,
+      options: [
+        { label: 'A', text: optA },
+        { label: 'B', text: optB },
+        { label: 'C', text: optC },
+        { label: 'D', text: optD },
+      ],
+      correct_option: editCorrectOption,
+    });
+
+    if (result.success) {
+      window.location.reload();
+    } else {
+      alert(result.error || 'Failed to update question');
     }
     setLoading(false);
   }
@@ -203,6 +251,9 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
                   <span className="text-xs font-mono bg-slate-800 px-2 py-1 rounded text-slate-300">
                     {q.marks} {q.marks === 1 ? 'mark' : 'marks'}
                   </span>
+                  <Button size="sm" variant="ghost" onClick={() => openEditModal(q)} className="text-indigo-400 hover:text-indigo-300">
+                    ✏️ Edit
+                  </Button>
                   <Button size="sm" variant="ghost" onClick={() => handleDeleteQuestion(q.id)} className="text-rose-400 hover:text-rose-300">
                     🗑️
                   </Button>
@@ -278,6 +329,87 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
                   </Button>
                   <Button type="submit" disabled={loading}>
                     {loading ? 'Saving...' : 'Save Question'}
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT QUESTION MODAL */}
+      {editingQuestion && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="w-full max-w-lg my-8">
+            <Card title="Edit Question" subtitle="Update question text, choices, marks, or answer key">
+              <form onSubmit={handleEditQuestion} className="space-y-4">
+                <Input
+                  label="Question Text *"
+                  name="question_text"
+                  required
+                  defaultValue={editingQuestion.question_text}
+                />
+                <Input
+                  label="Marks"
+                  name="marks"
+                  type="number"
+                  defaultValue={editingQuestion.marks || 1}
+                  required
+                />
+
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-slate-300">MCQ Options (A, B, C, D) *</label>
+                  <Input
+                    label="Option A"
+                    name="optA"
+                    required
+                    defaultValue={editingQuestion.options?.find((o: any) => o.option_label === 'A')?.option_text || ''}
+                  />
+                  <Input
+                    label="Option B"
+                    name="optB"
+                    required
+                    defaultValue={editingQuestion.options?.find((o: any) => o.option_label === 'B')?.option_text || ''}
+                  />
+                  <Input
+                    label="Option C"
+                    name="optC"
+                    required
+                    defaultValue={editingQuestion.options?.find((o: any) => o.option_label === 'C')?.option_text || ''}
+                  />
+                  <Input
+                    label="Option D"
+                    name="optD"
+                    required
+                    defaultValue={editingQuestion.options?.find((o: any) => o.option_label === 'D')?.option_text || ''}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Correct Answer Key *</label>
+                  <div className="flex gap-4">
+                    {(['A', 'B', 'C', 'D'] as const).map((lbl) => (
+                      <label key={lbl} className="flex items-center gap-2 cursor-pointer text-sm text-slate-200">
+                        <input
+                          type="radio"
+                          name="edit_correct_option"
+                          value={lbl}
+                          checked={editCorrectOption === lbl}
+                          onChange={() => setEditCorrectOption(lbl)}
+                          className="accent-indigo-600"
+                        />
+                        Option {lbl}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                  <Button type="button" variant="ghost" onClick={() => setEditingQuestion(null)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={loading}>
+                    {loading ? 'Updating...' : 'Update Question'}
                   </Button>
                 </div>
               </form>

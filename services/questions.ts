@@ -128,6 +128,69 @@ export async function deleteQuestionAction(questionId: string, testId: string) {
   return { success: true };
 }
 
+export async function updateQuestionAction(data: {
+  question_id: string;
+  test_id: string;
+  session_id?: string | null;
+  question_text: string;
+  marks: number;
+  options: { label: QuestionOptionLabel; text: string }[];
+  correct_option: QuestionOptionLabel;
+}) {
+  if (!data.question_text || !data.question_text.trim()) {
+    return { success: false, error: 'Question text is required.' };
+  }
+  if (!data.options || data.options.length < 4) {
+    return { success: false, error: 'Must provide 4 options (A, B, C, D).' };
+  }
+  if (!data.correct_option) {
+    return { success: false, error: 'Correct option is required.' };
+  }
+
+  const supabase = createAdminClient();
+
+  // 1. Update Question table
+  const { error: qErr } = await supabase
+    .from('questions')
+    .update({
+      question_text: data.question_text.trim(),
+      marks: data.marks || 1,
+      session_id: data.session_id || null,
+    })
+    .eq('id', data.question_id);
+
+  if (qErr) {
+    return { success: false, error: qErr.message };
+  }
+
+  // 2. Update Options
+  for (const opt of data.options) {
+    const { error: optErr } = await supabase
+      .from('options')
+      .update({ option_text: opt.text.trim() })
+      .eq('question_id', data.question_id)
+      .eq('option_label', opt.label);
+
+    if (optErr) {
+      return { success: false, error: optErr.message };
+    }
+  }
+
+  // 3. Update Answer Key
+  const { error: keyErr } = await supabase
+    .from('answer_keys')
+    .update({ correct_option: data.correct_option })
+    .eq('question_id', data.question_id);
+
+  if (keyErr) {
+    return { success: false, error: keyErr.message };
+  }
+
+  await updateTestTotals(data.test_id);
+  revalidatePath(`/admin/tests/${data.test_id}/questions`);
+  return { success: true };
+}
+
 export async function bulkImportQuestionsAction(
   testId: string,
   sessionId: string | null,
