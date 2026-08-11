@@ -40,12 +40,12 @@ export default function Home() {
       </div>
 
       {/* Header */}
-      <header className={`px-6 py-4 border-b backdrop-blur-md sticky top-0 z-50 ${headerBg}`}>
-        <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
+      <header className={`px-4 sm:px-6 py-3 sm:py-4 border-b backdrop-blur-md sticky top-0 z-50 ${headerBg}`}>
+        <div className="max-w-7xl mx-auto w-full flex flex-wrap items-center justify-between gap-3">
 
           {/* Logo + Name */}
-          <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-white shadow-lg p-1.5 flex items-center justify-center border border-slate-200 flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-white shadow-lg p-1 sm:p-1.5 flex items-center justify-center border border-slate-200 flex-shrink-0">
               <Image
                 src="/PyVerse_logo.png"
                 alt="MIT PyVerse"
@@ -55,45 +55,44 @@ export default function Home() {
                 priority
               />
             </div>
-            <h1 className={`font-extrabold text-xl tracking-tight ${dark ? 'text-white' : 'text-slate-900'}`}>
+            <h1 className={`font-extrabold text-base sm:text-xl tracking-tight ${dark ? 'text-white' : 'text-slate-900'}`}>
               MIT PyVerse
             </h1>
           </div>
 
           {/* Nav + Theme Toggle */}
-          <div className="flex items-center gap-3">
-          {/* Sliding Pill Theme Toggle */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Sliding Pill Theme Toggle */}
             <button
               onClick={toggleTheme}
               aria-label="Toggle theme"
-              className={`relative flex items-center w-16 h-8 rounded-full transition-colors duration-300 focus:outline-none flex-shrink-0 ${dark ? 'bg-slate-900 border border-slate-700' : 'bg-slate-100 border border-slate-300'}`}
+              className={`relative flex items-center w-14 sm:w-16 h-7 sm:h-8 rounded-full transition-colors duration-300 focus:outline-none flex-shrink-0 ${dark ? 'bg-slate-900 border border-slate-700' : 'bg-slate-100 border border-slate-300'}`}
             >
-              {/* Moon icon (shown when dark) */}
-              <span className={`absolute left-2 text-[13px] transition-opacity duration-200 select-none ${dark ? 'opacity-100' : 'opacity-0'}`}>
+              {/* Moon icon */}
+              <span className={`absolute left-1.5 sm:left-2 text-[11px] sm:text-[13px] transition-opacity duration-200 select-none ${dark ? 'opacity-100' : 'opacity-0'}`}>
                 🌙
               </span>
-              {/* Sun icon (shown when light) */}
-              <span className={`absolute right-2 text-[13px] transition-opacity duration-200 select-none ${dark ? 'opacity-0' : 'opacity-100'}`}>
+              {/* Sun icon */}
+              <span className={`absolute right-1.5 sm:right-2 text-[11px] sm:text-[13px] transition-opacity duration-200 select-none ${dark ? 'opacity-0' : 'opacity-100'}`}>
                 ☀️
               </span>
               {/* Sliding circle */}
               <span
-                className={`absolute top-1 w-6 h-6 rounded-full shadow-md transition-all duration-300 ${dark ? 'left-[calc(100%-1.75rem)] bg-white' : 'left-1 bg-slate-900'}`}
+                className={`absolute top-0.5 sm:top-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full shadow-md transition-all duration-300 ${dark ? 'left-[calc(100%-1.5rem)] sm:left-[calc(100%-1.75rem)] bg-white' : 'left-0.5 sm:left-1 bg-slate-900'}`}
               />
             </button>
 
-
             <Link
               href="/login"
-              className={`px-4 py-2 text-sm font-semibold transition-colors ${dark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'}`}
+              className={`px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-colors ${dark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'}`}
             >
-              Student Login
+              Student
             </Link>
             <Link
               href="/admin/login"
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition-all hover:scale-105"
+              className="px-3 sm:px-5 py-1.5 sm:py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-bold rounded-lg sm:rounded-xl shadow-lg shadow-indigo-600/30 transition-all hover:scale-105"
             >
-              Admin Portal 🔐
+              Admin 🔐
             </Link>
           </div>
         </div>
