@@ -41,7 +41,8 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
     const formData = new FormData(e.currentTarget);
 
     const question_text = formData.get('question_text') as string;
-    const marks = parseInt(formData.get('marks') as string || '1', 10);
+    const rawMarks = formData.get('marks') as string;
+    const marks = rawMarks !== '' && rawMarks !== null ? parseInt(rawMarks, 10) : 1;
     const session_id = (formData.get('session_id') as string) || null;
 
     const optA = formData.get('optA') as string;
@@ -53,7 +54,7 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
       test_id: testId,
       session_id,
       question_text,
-      marks,
+      marks: isNaN(marks) ? 1 : marks,
       options: [
         { label: 'A', text: optA },
         { label: 'B', text: optB },
@@ -85,7 +86,8 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
     const formData = new FormData(e.currentTarget);
 
     const question_text = formData.get('question_text') as string;
-    const marks = parseInt(formData.get('marks') as string || '1', 10);
+    const rawMarks = formData.get('marks') as string;
+    const marks = rawMarks !== '' && rawMarks !== null ? parseInt(rawMarks, 10) : 1;
     const session_id = (formData.get('session_id') as string) || null;
 
     const optA = formData.get('optA') as string;
@@ -98,7 +100,7 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
       test_id: testId,
       session_id,
       question_text,
-      marks,
+      marks: isNaN(marks) ? 1 : marks,
       options: [
         { label: 'A', text: optA },
         { label: 'B', text: optB },
@@ -495,7 +497,7 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
                   label="Marks"
                   name="marks"
                   type="number"
-                  defaultValue={editingQuestion.marks || 1}
+                  defaultValue={editingQuestion.marks ?? 1}
                   required
                 />
 

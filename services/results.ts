@@ -168,7 +168,7 @@ export async function getSingleResultDetailAction(attemptId: string) {
     return {
       id: q.id,
       questionText: q.question_text,
-      marks: q.marks || 1,
+      marks: typeof q.marks === 'number' ? q.marks : 1,
       orderIndex: q.order_index,
       options: q.options || [],
       correctOption,
@@ -350,7 +350,7 @@ export async function getFullAnswerSheetAction(testId: string, sessionId?: strin
         questionId: q.id,
         questionText: q.question_text,
         orderIndex: q.order_index,
-        marks: q.marks || 1,
+        marks: typeof q.marks === 'number' ? q.marks : 1,
         optionA: getOpt('A'),
         optionB: getOpt('B'),
         optionC: getOpt('C'),

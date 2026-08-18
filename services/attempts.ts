@@ -373,7 +373,7 @@ export async function evaluateAndSubmitAttemptAction(
   let totalPossibleMarks = 0;
 
   questions?.forEach((q: any) => {
-    const marks = q.marks || 1;
+    const marks = typeof q.marks === 'number' ? q.marks : 1;
     totalPossibleMarks += marks;
     // Supabase 1:1 relation returns answer_keys as an object, not an array
     const rawKey = Array.isArray(q.answer_keys) ? q.answer_keys[0]?.correct_option : q.answer_keys?.correct_option;

@@ -90,7 +90,7 @@ export async function createQuestionAction(data: {
         session_id: data.session_id || null,
         question_text: data.question_text.trim(),
         question_type: 'mcq',
-        marks: data.marks || 1,
+        marks: typeof data.marks === 'number' ? data.marks : 1,
         order_index,
       },
     ])
@@ -188,7 +188,7 @@ export async function updateQuestionAction(data: {
     .from('questions')
     .update({
       question_text: data.question_text.trim(),
-      marks: data.marks || 1,
+      marks: typeof data.marks === 'number' ? data.marks : 1,
       session_id: data.session_id || null,
     })
     .eq('id', data.question_id);
@@ -266,7 +266,7 @@ export async function bulkImportQuestionsAction(
       test_id: testId,
       session_id: sessionId,
       question_text: q.question_text,
-      marks: q.marks || 1,
+      marks: typeof q.marks === 'number' ? q.marks : 1,
       options: [
         { label: 'A', text: q.option_a },
         { label: 'B', text: q.option_b },
@@ -302,7 +302,7 @@ async function updateTestTotals(testId: string) {
     .eq('test_id', testId);
 
   const total_questions = qList ? qList.length : 0;
-  const total_marks = qList ? qList.reduce((acc, curr) => acc + (curr.marks || 0), 0) : 0;
+  const total_marks = qList ? qList.reduce((acc, curr) => acc + (curr.marks ?? 0), 0) : 0;
 
   await supabase
     .from('tests')
@@ -336,7 +336,7 @@ export async function reEvaluateTestScoresAction(testId: string, note?: string) 
     return { success: false, error: qErr?.message || 'Failed to fetch questions.' };
   }
 
-  const totalPossibleMarks = questions.reduce((acc: number, q: any) => acc + (q.marks || 1), 0);
+  const totalPossibleMarks = questions.reduce((acc: number, q: any) => acc + (typeof q.marks === 'number' ? q.marks : 1), 0);
 
   let successCount = 0;
   let failCount = 0;
@@ -379,7 +379,7 @@ export async function reEvaluateTestScoresAction(testId: string, note?: string) 
     // 6. Re-calculate score with current answer keys
     let newScore = 0;
     questions.forEach((q: any) => {
-      const marks = q.marks || 1;
+      const marks = typeof q.marks === 'number' ? q.marks : 1;
       const rawKey = Array.isArray(q.answer_keys) ? q.answer_keys[0]?.correct_option : q.answer_keys?.correct_option;
       const correctOption = rawKey ? String(rawKey).trim().toUpperCase() : null;
       const studentSelected = answerMap.get(q.id) ? String(answerMap.get(q.id)).trim().toUpperCase() : null;
