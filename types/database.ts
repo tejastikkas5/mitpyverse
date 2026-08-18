@@ -140,8 +140,42 @@ export interface Score {
   score: number;
   total_marks: number;
   percentage: number;
+  bonus_marks: number;
+  snapshot_version: number;
   rank?: number;
   evaluated_at: string;
+  created_at: string;
+}
+
+export type SnapshotType = 'original' | 'reevaluation' | 'bonus_applied';
+
+export interface ScoreSnapshot {
+  id: string;
+  attempt_id: string;
+  test_id: string;
+  student_id: string;
+  session_id?: string | null;
+  score: number;
+  total_marks: number;
+  percentage: number;
+  bonus_marks: number;
+  snapshot_type: SnapshotType;
+  triggered_by: string;
+  note?: string | null;
+  evaluated_at: string;
+  created_at: string;
+}
+
+export type AdjustmentType = 'bonus_marks' | 'reevaluation';
+
+export interface TestAdjustment {
+  id: string;
+  test_id: string;
+  adjustment_type: AdjustmentType;
+  bonus_marks: number;
+  reason: string;
+  applied_by: string;
+  applied_at: string;
   created_at: string;
 }
 

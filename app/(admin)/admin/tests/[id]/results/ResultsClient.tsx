@@ -3,9 +3,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ResultRow } from '@/services/results';
+import { ResultRow, awardBonusMarksAction, getFullAnswerSheetAction } from '@/services/results';
+import { getTestAdjustmentsAction } from '@/services/adjustments';
 import { resetViolationsAndReopenAttemptAction } from '@/services/monitoring';
-import { exportResultsPDF, exportResultsExcel } from '@/utils/resultExport';
+import { exportResultsPDF, exportResultsExcel, exportAnswerSheetExcel, exportAnswerSheetPDF } from '@/utils/resultExport';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -23,6 +24,18 @@ export function ResultsClient({ testId, initialData }: ResultsClientProps) {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'rank' | 'score' | 'name' | 'time'>('rank');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  // Bonus Marks State
+  const [showBonusPanel, setShowBonusPanel] = useState(false);
+  const [bonusMarks, setBonusMarks] = useState('');
+  const [bonusReason, setBonusReason] = useState('');
+  const [bonusLoading, setBonusLoading] = useState(false);
+  const [bonusResult, setBonusResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [adjustments, setAdjustments] = useState<any[]>([]);
+  const [adjustmentsLoaded, setAdjustmentsLoaded] = useState(false);
+
+  // Answer Sheet Export State
+  const [answerSheetLoading, setAnswerSheetLoading] = useState<'excel' | 'pdf' | null>(null);
 
   const test = data?.test;
   const sessions = data?.sessions || [];
@@ -62,6 +75,56 @@ export function ResultsClient({ testId, initialData }: ResultsClientProps) {
     return `${m}m ${s}s`;
   }
 
+  async function handleBonusMarks() {
+    const marks = parseFloat(bonusMarks);
+    if (!marks || marks <= 0) { alert('Please enter valid bonus marks (> 0).'); return; }
+    if (!bonusReason.trim()) { alert('Please enter a reason for awarding bonus marks.'); return; }
+    if (!confirm(`Award +${marks} marks to ALL students? This action will be logged and previous scores will be preserved.`)) return;
+
+    setBonusLoading(true);
+    setBonusResult(null);
+    const res = await awardBonusMarksAction(testId, marks, bonusReason);
+    setBonusLoading(false);
+
+    if (res.success) {
+      setBonusResult({
+        success: true,
+        message: `✅ Bonus applied! ${res.successCount} of ${res.totalStudents} students received +${marks} marks.${(res.failCount ?? 0) > 0 ? ` (${res.failCount} failed)` : ''}`,
+      });
+      setBonusMarks('');
+      setBonusReason('');
+      // Reload adjustments log
+      const adjRes = await getTestAdjustmentsAction(testId);
+      if (adjRes.success) setAdjustments(adjRes.adjustments);
+    } else {
+      setBonusResult({ success: false, message: `❌ Error: ${(res as any).error}` });
+    }
+  }
+
+  async function handleLoadAdjustments() {
+    if (adjustmentsLoaded) return;
+    const res = await getTestAdjustmentsAction(testId);
+    if (res.success) { setAdjustments(res.adjustments); setAdjustmentsLoaded(true); }
+  }
+
+  async function handleAnswerSheetExport(format: 'excel' | 'pdf') {
+    setAnswerSheetLoading(format);
+    const sessionFilter = selectedSessionId === 'all' ? null : selectedSessionId;
+    const res = await getFullAnswerSheetAction(testId, sessionFilter);
+    setAnswerSheetLoading(null);
+
+    if (!res.success || !res.rows) {
+      alert(`Failed to load answer sheet data: ${(res as any).error}`);
+      return;
+    }
+
+    if (format === 'excel') {
+      exportAnswerSheetExcel(test?.title || 'Exam', res.rows);
+    } else {
+      exportAnswerSheetPDF(test?.title || 'Exam', res.rows);
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* HEADER BAR */}
@@ -73,7 +136,8 @@ export function ResultsClient({ testId, initialData }: ResultsClientProps) {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Existing Result Exports */}
           <Button
             variant="outline"
             onClick={() => exportResultsPDF(test?.title || 'Exam', activeSessionName, filtered, analytics)}
@@ -85,6 +149,23 @@ export function ResultsClient({ testId, initialData }: ResultsClientProps) {
             onClick={() => exportResultsExcel(test?.title || 'Exam', activeSessionName, filtered)}
           >
             📊 Export Excel (.xlsx)
+          </Button>
+          {/* New Answer Sheet Exports */}
+          <Button
+            variant="outline"
+            disabled={answerSheetLoading === 'excel'}
+            onClick={() => handleAnswerSheetExport('excel')}
+            className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+          >
+            {answerSheetLoading === 'excel' ? '⏳ Loading...' : '📋 Answer Sheet (Excel)'}
+          </Button>
+          <Button
+            variant="outline"
+            disabled={answerSheetLoading === 'pdf'}
+            onClick={() => handleAnswerSheetExport('pdf')}
+            className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+          >
+            {answerSheetLoading === 'pdf' ? '⏳ Loading...' : '📋 Answer Sheet (PDF)'}
           </Button>
         </div>
       </div>
@@ -124,6 +205,98 @@ export function ResultsClient({ testId, initialData }: ResultsClientProps) {
           </div>
         </Card>
       </div>
+
+      {/* 🎁 BONUS MARKS PANEL */}
+      <Card className="border-violet-500/20 bg-violet-950/10">
+        <button
+          onClick={() => { setShowBonusPanel(!showBonusPanel); if (!showBonusPanel) handleLoadAdjustments(); }}
+          className="w-full flex items-center justify-between text-left"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🎁</span>
+            <div>
+              <div className="text-sm font-bold text-violet-300">Award Bonus Marks to All Students</div>
+              <div className="text-xs text-slate-400">For faulty questions where all options were incorrect</div>
+            </div>
+          </div>
+          <span className="text-slate-400 text-sm">{showBonusPanel ? '▲ Collapse' : '▼ Expand'}</span>
+        </button>
+
+        {showBonusPanel && (
+          <div className="mt-4 space-y-4 pt-4 border-t border-slate-800">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Bonus Marks to Award *</label>
+                <input
+                  type="number"
+                  min="0.5"
+                  step="0.5"
+                  value={bonusMarks}
+                  onChange={(e) => setBonusMarks(e.target.value)}
+                  placeholder="e.g. 4"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-violet-500"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Reason / Note *</label>
+                <input
+                  type="text"
+                  value={bonusReason}
+                  onChange={(e) => setBonusReason(e.target.value)}
+                  placeholder="e.g. Q1 (1 mark) and Q12 (3 marks) had no valid correct option — awarding 4 marks to all students"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-violet-500"
+                />
+              </div>
+            </div>
+
+            {/* Result Message */}
+            {bonusResult && (
+              <div className={`p-3 rounded-lg border text-sm font-medium ${
+                bonusResult.success
+                  ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-300'
+                  : 'bg-rose-950/30 border-rose-500/30 text-rose-300'
+              }`}>
+                {bonusResult.message}
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <Button
+                onClick={handleBonusMarks}
+                disabled={bonusLoading}
+                className="bg-violet-600 hover:bg-violet-500 text-white font-bold"
+              >
+                {bonusLoading ? '⏳ Applying...' : '🎁 Apply Bonus Marks'}
+              </Button>
+            </div>
+
+            {/* Adjustment History */}
+            {adjustments.length > 0 && (
+              <div className="pt-3 border-t border-slate-800">
+                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">📋 Adjustment History</div>
+                <div className="space-y-1.5">
+                  {adjustments.map((adj: any) => (
+                    <div key={adj.id} className="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 rounded-lg px-3 py-2">
+                      <div>
+                        <span className={`font-bold mr-2 ${adj.adjustment_type === 'bonus_marks' ? 'text-violet-400' : 'text-amber-400'}`}>
+                          {adj.adjustment_type === 'bonus_marks' ? '🎁 Bonus' : '🔄 Re-Eval'}
+                        </span>
+                        {adj.adjustment_type === 'bonus_marks' && (
+                          <span className="text-emerald-400 font-mono font-bold mr-2">+{adj.bonus_marks} marks</span>
+                        )}
+                        <span className="text-slate-300">{adj.reason}</span>
+                      </div>
+                      <span className="text-slate-500 ml-3 whitespace-nowrap">
+                        {new Date(adj.applied_at).toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
 
       {/* FILTER & SEARCH TOOLBAR */}
       <Card className="flex flex-col md:flex-row justify-between items-center gap-4">

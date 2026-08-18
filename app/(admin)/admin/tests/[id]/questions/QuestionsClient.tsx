@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createQuestionAction, updateQuestionAction, deleteQuestionAction, deleteMultipleQuestionsAction, bulkImportQuestionsAction } from '@/services/questions';
+import { createQuestionAction, updateQuestionAction, deleteQuestionAction, deleteMultipleQuestionsAction, bulkImportQuestionsAction, reEvaluateTestScoresAction } from '@/services/questions';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -23,6 +23,12 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+
+  // Re-Evaluate State
+  const [showReEvalModal, setShowReEvalModal] = useState(false);
+  const [reEvalNote, setReEvalNote] = useState('');
+  const [reEvalLoading, setReEvalLoading] = useState(false);
+  const [reEvalResult, setReEvalResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // Add Question State
   const [correctOption, setCorrectOption] = useState<QuestionOptionLabel>('A');
@@ -270,6 +276,21 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
     }
   }
 
+  async function handleReEvaluate() {
+    setReEvalLoading(true);
+    setReEvalResult(null);
+    const res = await reEvaluateTestScoresAction(testId, reEvalNote.trim() || undefined);
+    setReEvalLoading(false);
+    if (res.success) {
+      setReEvalResult({
+        success: true,
+        message: `✅ Re-evaluation complete! ${res.successCount} of ${res.totalAttempts} student scores updated successfully.${(res.failCount ?? 0) > 0 ? ` (${res.failCount} failed)` : ''}`,
+      });
+    } else {
+      setReEvalResult({ success: false, message: `❌ Error: ${(res as any).error}` });
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -280,6 +301,13 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => { setShowReEvalModal(true); setReEvalResult(null); setReEvalNote(''); }}
+            className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+          >
+            🔄 Re-Evaluate Scores
+          </Button>
           <Button variant="outline" onClick={() => setShowBulkModal(true)}>
             📥 Bulk CSV Import
           </Button>
@@ -567,6 +595,64 @@ export function QuestionsClient({ testId, initialQuestions, sessions }: Question
                   <Button variant="ghost" onClick={() => setShowBulkModal(false)}>
                     Cancel
                   </Button>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+      )}\n\n      {/* RE-EVALUATE MODAL */}
+      {showReEvalModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-md">
+            <Card title="🔄 Re-Evaluate All Student Scores" subtitle="Recalculate scores using the current (corrected) answer keys">
+              <div className="space-y-4">
+                {/* Warning Banner */}
+                <div className="p-3 bg-amber-950/30 border border-amber-500/30 rounded-lg">
+                  <p className="text-xs text-amber-300 font-semibold">⚠️ Important</p>
+                  <p className="text-xs text-amber-200/80 mt-1">
+                    This will recalculate ALL submitted student scores using the <span className="font-bold text-amber-300">current answer keys</span>.
+                    Previous scores will be preserved in the audit log — no data will be lost.
+                  </p>
+                </div>
+
+                {/* Optional Note */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Reason / Note <span className="text-slate-500 font-normal">(optional)</span>
+                  </label>
+                  <textarea
+                    value={reEvalNote}
+                    onChange={(e) => setReEvalNote(e.target.value)}
+                    rows={3}
+                    placeholder="e.g. Fixed Q5 correct answer from C to D — re-evaluating all scores..."
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-amber-500 resize-none"
+                  />
+                </div>
+
+                {/* Result Message */}
+                {reEvalResult && (
+                  <div className={`p-3 rounded-lg border text-sm font-medium ${
+                    reEvalResult.success
+                      ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-300'
+                      : 'bg-rose-950/30 border-rose-500/30 text-rose-300'
+                  }`}>
+                    {reEvalResult.message}
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                  <Button type="button" variant="ghost" onClick={() => setShowReEvalModal(false)}>
+                    {reEvalResult ? 'Close' : 'Cancel'}
+                  </Button>
+                  {!reEvalResult && (
+                    <Button
+                      onClick={handleReEvaluate}
+                      disabled={reEvalLoading}
+                      className="bg-amber-600 hover:bg-amber-500 text-white font-bold"
+                    >
+                      {reEvalLoading ? '⏳ Re-Evaluating...' : '🔄 Confirm Re-Evaluate'}
+                    </Button>
+                  )}
                 </div>
               </div>
             </Card>

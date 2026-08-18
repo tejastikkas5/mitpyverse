@@ -309,3 +309,132 @@ async function updateTestTotals(testId: string) {
     .update({ total_questions, total_marks })
     .eq('id', testId);
 }
+
+// Re-Evaluate all student scores for a test using the current (corrected) answer_keys
+export async function reEvaluateTestScoresAction(testId: string, note?: string) {
+  const supabase = createAdminClient();
+  const nowIso = new Date().toISOString();
+
+  // 1. Fetch all submitted attempts for this test
+  const { data: attempts, error: attErr } = await supabase
+    .from('exam_attempts')
+    .select('id, student_id, session_id, status')
+    .eq('test_id', testId)
+    .in('status', ['submitted', 'auto_submitted', 'force_submitted']);
+
+  if (attErr || !attempts || attempts.length === 0) {
+    return { success: false, error: attErr?.message || 'No submitted attempts found for this test.' };
+  }
+
+  // 2. Fetch all questions with current answer_keys for this test
+  const { data: questions, error: qErr } = await supabase
+    .from('questions')
+    .select('id, marks, answer_keys(correct_option)')
+    .eq('test_id', testId);
+
+  if (qErr || !questions) {
+    return { success: false, error: qErr?.message || 'Failed to fetch questions.' };
+  }
+
+  const totalPossibleMarks = questions.reduce((acc: number, q: any) => acc + (q.marks || 1), 0);
+
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const attempt of attempts) {
+    // 3. Fetch existing score for this attempt (to snapshot it)
+    const { data: existingScore } = await supabase
+      .from('scores')
+      .select('*')
+      .eq('attempt_id', attempt.id)
+      .single();
+
+    // 4. Snapshot the existing score before overwriting
+    if (existingScore) {
+      await supabase.from('score_snapshots').insert([{
+        attempt_id: attempt.id,
+        test_id: testId,
+        student_id: attempt.student_id,
+        session_id: attempt.session_id || null,
+        score: existingScore.score,
+        total_marks: existingScore.total_marks,
+        percentage: existingScore.percentage,
+        bonus_marks: existingScore.bonus_marks || 0,
+        snapshot_type: 'reevaluation',
+        triggered_by: 'admin',
+        note: note || 'Re-evaluation triggered after answer key correction.',
+        evaluated_at: existingScore.evaluated_at || nowIso,
+      }]);
+    }
+
+    // 5. Fetch student answers for this attempt
+    const { data: studentAnswers } = await supabase
+      .from('student_answers')
+      .select('question_id, selected_option')
+      .eq('attempt_id', attempt.id);
+
+    const answerMap = new Map<string, string>();
+    studentAnswers?.forEach((sa: any) => answerMap.set(sa.question_id, sa.selected_option));
+
+    // 6. Re-calculate score with current answer keys
+    let newScore = 0;
+    questions.forEach((q: any) => {
+      const marks = q.marks || 1;
+      const rawKey = Array.isArray(q.answer_keys) ? q.answer_keys[0]?.correct_option : q.answer_keys?.correct_option;
+      const correctOption = rawKey ? String(rawKey).trim().toUpperCase() : null;
+      const studentSelected = answerMap.get(q.id) ? String(answerMap.get(q.id)).trim().toUpperCase() : null;
+
+      if (correctOption && studentSelected && correctOption === studentSelected) {
+        newScore += marks;
+      }
+    });
+
+    // Keep existing bonus marks
+    const existingBonus = existingScore?.bonus_marks || 0;
+    const finalScore = newScore + existingBonus;
+    const percentage = totalPossibleMarks > 0
+      ? parseFloat(((finalScore / totalPossibleMarks) * 100).toFixed(2))
+      : 0;
+
+    // 7. Update the live scores table
+    const currentVersion = existingScore?.snapshot_version || 1;
+    const { error: upsertErr } = await supabase
+      .from('scores')
+      .upsert([{
+        attempt_id: attempt.id,
+        test_id: testId,
+        student_id: attempt.student_id,
+        session_id: attempt.session_id || null,
+        score: finalScore,
+        total_marks: totalPossibleMarks,
+        percentage,
+        bonus_marks: existingBonus,
+        snapshot_version: currentVersion + 1,
+        evaluated_at: nowIso,
+      }], { onConflict: 'attempt_id' });
+
+    if (upsertErr) {
+      failCount++;
+    } else {
+      successCount++;
+    }
+  }
+
+  // 8. Log this re-evaluation event in test_adjustments
+  await supabase.from('test_adjustments').insert([{
+    test_id: testId,
+    adjustment_type: 'reevaluation',
+    bonus_marks: 0,
+    reason: note || 'Answer key correction — re-evaluation triggered by admin.',
+    applied_by: 'admin',
+    applied_at: nowIso,
+  }]);
+
+  revalidatePath(`/admin/tests/${testId}/results`);
+  return {
+    success: true,
+    totalAttempts: attempts.length,
+    successCount,
+    failCount,
+  };
+}
